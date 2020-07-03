@@ -6,8 +6,8 @@ aliddnsipv6_ak="修改我"
 aliddnsipv6_sk="修改我"
 #下面引号内改成你要解析域名的前缀，如果是根域名直接填写@
 aliddnsipv6_name1="修改我"
-#下面引号内改成你要解析的主域名，例如：junz.top  
-aliddnsipv6_domain="junz.top"
+#下面引号内改成你要解析的主域名，例如：baidu.com  
+aliddnsipv6_domain="修改我"
 #下面引号内改成你需要的解析切换时间，这个阿里默认最快600秒，花钱才能改小
 aliddnsipv6_ttl="600"
 #判断是否含有@，因为含有@的解析是直接上报xxx.com之类的，而不会盲目上报为@.xxx.com
