@@ -15,7 +15,7 @@
 
 ### 1、改密码O(∩_∩)O，就是修改账号密码的意思。。。
 修改脚本：
-```sh
+```bash
 #下面引号内改成你的阿里ak
       aliddnsipv6_ak="修改我"
 #下面引号内改成你的阿里sk，说白了这俩就是账号和密码
@@ -24,7 +24,7 @@
 
 ### 2、改需要解析的域名
 `aliddnsipv6_name1`是域名前缀，就是xxx.baidu.com里面的xxx，`aliddnsipv6_domain`是主域名，就是xxx.com：
-```sh
+```bash
 #下面引号内改成你要解析域名的前缀，如果是根域名直接填写@
       aliddnsipv6_name1="修改我"
 #下面引号内改成你要解析的主域名，例如：baidu.com  
@@ -35,13 +35,13 @@
   
 ### 3、 运行脚本
 推荐用bash：
-```sh
+```bash
 	bash aliddns-ipv6
 ```
 bash 运行脚本后，观察情况，一般3秒结束。。。
 ### 4、定时启动
 当然用`crontab`
-```sh
+```bash
 crontab -e
 # 在编辑器里面搞些东西
 */10 * * * * bash /root/aliddns-ipv6
