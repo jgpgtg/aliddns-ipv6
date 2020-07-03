@@ -1,0 +1,102 @@
+#!/bin/sh
+#脚本最好用bash运行，命令格式：bash aliddns
+#下面引号内改成你的阿里ak
+aliddnsipv6_ak="修改我"
+#下面引号内改成你的阿里sk，说白了这俩就是账号和密码
+aliddnsipv6_sk="修改我"
+#下面引号内改成你要解析域名的前缀，如果是根域名直接填写@
+aliddnsipv6_name1="修改我"
+#下面引号内改成你要解析的主域名，例如：junz.top  
+aliddnsipv6_domain="junz.top"
+#下面引号内改成你需要的解析切换时间，这个阿里默认最快600秒，花钱才能改小
+aliddnsipv6_ttl="600"
+#判断是否含有@，因为含有@的解析是直接上报xxx.com之类的，而不会盲目上报为@.xxx.com
+if [ "$aliddnsipv6_name1" = "@" ]
+then
+  aliddnsipv6_name=$aliddnsipv6_domain
+else
+  aliddnsipv6_name=$aliddnsipv6_name1.$aliddnsipv6_domain
+fi
+#搞一下时间,记录一下美好时刻
+echo "当前时间为：`date`"
+#这里有两个获取你本机的IPV6的地址的，便于一个挂了，另一个做备份，当然你也可以利用if语句判断一下，如果第一个不行用第二个。。。
+#如果是要解析IPv4的，把下面v6.ident.me换成v4.ident.me
+ipv6=`curl -sL --connect-timeout 3 v6.ident.me` 
+if [ "$ipv6" = "" ]
+then
+ipv6=`curl -s ipv6.ip.sb`
+fi
+#打印出来当前本地IPV6地址，为了好对比程序干了啥事
+echo "当前本机IP：$ipv6"
+#下面是获取当前阿里为你解析的IPV6地址的,如果要解析IPv4的，把AAAA换成A
+########建议使用默认的，因为你更新了dns之后，dns9.hichina.com是立即生效的########
+#想解析IPV4，需要把&type=AAA删除了
+current_ipv6=`nslookup -query=AAAA $aliddnsipv6_name dns9.hichina.com 2>&1 | grep 'Address: ' | tail -n1 | awk '{print $NF}'`
+#current_ipv6=`curl -sL --connect-timeout 3 "119.29.29.29/d?dn=$aliddnsipv6_name&type=AAAA"`
+#再打印一下让你看清楚，是不是
+    echo "当前阿里解析IP:$current_ipv6"
+#如果本地IPV6和阿里解析的相同，我就过了
+if [ "$ipv6" = "$current_ipv6" ]
+    then
+   echo "你看，IP没有变化不用更新了，老臣告退。。。ψ(｀∇´)ψ"
+   exit
+# 如果不一样，那我就开始更新了
+else
+    unset aliddnsipv6_record_id
+fi
+
+#时间戳格式要正确
+timestamp=`date -u "+%Y-%m-%dT%H%%3A%M%%3A%SZ"`
+#下面是阿里相关，都是要求的各种格式，还有获取recordid之类的，我们跳到更新记录那，往下
+urlencode() {
+    # urlencode <string>
+    out=""
+    while read -n1 c
+    do
+        case $c in
+            [a-zA-Z0-9._-]) out="$out$c" ;;
+            *) out="$out`printf '%%%02X' "'$c"`" ;;
+        esac
+    done
+    echo -n $out
+}
+
+enc() {
+    echo -n "$1" | urlencode
+}
+
+send_request() {
+    local args="AccessKeyId=$aliddnsipv6_ak&Action=$1&Format=json&$2&Version=2015-01-09"
+    local hash=$(echo -n "GET&%2F&$(enc "$args")" | openssl dgst -sha1 -hmac "$aliddnsipv6_sk&" -binary | openssl base64)
+    curl -s "http://alidns.aliyuncs.com/?$args&Signature=$(enc "$hash")"
+}
+
+get_recordid() {
+    grep -Eo '"RecordId":"[0-9]+"' | cut -d':' -f2 | tr -d '"'
+}
+#############这里------------下面的Type=AAAA是更新IPV6与IPV4的唯一区别，其余更新代码相同，所以，可以这样理解--换行说
+#############例如下面的可以把AAAA改为A即可
+query_recordid() {
+    send_request "DescribeSubDomainRecords" "SignatureMethod=HMAC-SHA1&SignatureNonce=$timestamp&SignatureVersion=1.0&SubDomain=$aliddnsipv6_name&Timestamp=$timestamp&Type=AAAA"
+}
+
+update_record() {
+    send_request "UpdateDomainRecord" "RR=$aliddnsipv6_name1&RecordId=$1&SignatureMethod=HMAC-SHA1&SignatureNonce=$timestamp&SignatureVersion=1.0&TTL=$aliddnsipv6_ttl&Timestamp=$timestamp&Type=AAAA&Value=$(enc $ipv6)"
+}
+
+add_record() {
+    send_request "AddDomainRecord&DomainName=$aliddnsipv6_domain" "RR=$aliddnsipv6_name1&SignatureMethod=HMAC-SHA1&SignatureNonce=$timestamp&SignatureVersion=1.0&TTL=$aliddnsipv6_ttl&Timestamp=$timestamp&Type=AAAA&Value=$(enc $ipv6)"
+}
+
+if [ "$aliddnsipv6_record_id" = "" ]
+then
+    aliddnsipv6_record_id=`query_recordid | get_recordid`
+    fi
+if [ "$aliddnsipv6_record_id" = "" ]
+then
+    aliddnsipv6_record_id=`add_record | get_recordid`
+    echo "已增加了新的解析$aliddnsipv6_name $ipv6 $aliddnsipv6_record_id"
+else
+    update_record $aliddnsipv6_record_id
+    echo "已更新了新的解析$aliddnsipv6_name 更新为$ipv6" 
+fi
